@@ -1,0 +1,137 @@
+version: "3.9"
+
+services:
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - gateway
+    networks:
+      - juncture
+
+  gateway:
+    build: ./gateway
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_REGISTRY: "http://node1:4001,http://node2:4002,http://node3:4003"
+    depends_on:
+      node1:
+        condition: service_started
+      node2:
+        condition: service_started
+      node3:
+        condition: service_started
+    restart: on-failure
+    networks:
+      - juncture
+
+  # ── Node 1 ──────────────────────────────────────────
+  node1:
+    build: ./node-service
+    env_file:
+      - ./node-service/.env.node1
+    depends_on:
+      db1:
+        condition: service_healthy
+    restart: on-failure
+    volumes:
+      - node1_repos:/app/repos
+    networks:
+      - juncture
+
+  db1:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: juncture
+    volumes:
+      - db1_data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - juncture
+
+  # ── Node 2 ──────────────────────────────────────────
+  node2:
+    build: ./node-service
+    env_file:
+      - ./node-service/.env.node2
+    depends_on:
+      db2:
+        condition: service_healthy
+    restart: on-failure
+    volumes:
+      - node2_repos:/app/repos
+    networks:
+      - juncture
+
+  db2:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: juncture
+    volumes:
+      - db2_data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - juncture
+
+  # ── Node 3 ──────────────────────────────────────────
+  node3:
+    build: ./node-service
+    env_file:
+      - ./node-service/.env.node3
+    depends_on:
+      db3:
+        condition: service_healthy
+    restart: on-failure
+    volumes:
+      - node3_repos:/app/repos
+    networks:
+      - juncture
+
+  db3:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: juncture
+    volumes:
+      - db3_data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - juncture
+
+volumes:
+  db1_data:
+  db2_data:
+  db3_data:
+  node1_repos:
+  node2_repos:
+  node3_repos:
+
+networks:
+  juncture:
+    driver: bridge
